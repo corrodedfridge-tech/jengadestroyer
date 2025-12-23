@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Jenga Destruction Sim - Mobile Ready</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #f0f4f8; font-family: 'Segoe UI', system-ui, sans-serif; touch-action: none; }
+        
+        #ui {
+            position: absolute; top: 10px; left: 10px; color: #1a3a5a; pointer-events: none;
+            z-index: 200; text-shadow: 0 1px 2px rgba(255,255,255,0.8);
+        }
+
+        #menu-container {
+            position: absolute; top: 10px; right: 10px; 
+            z-index: 300; display: flex; flex-direction: column; align-items: flex-end;
+        }
+
+        #menu-toggle {
+            background: #0077ff; color: white; border: none;
+            padding: 10px 15px; border-radius: 50px; font-weight: bold;
+            cursor: pointer; box-shadow: 0 4px 15px rgba(0, 119, 255, 0.3);
+            display: flex; align-items: center; gap: 8px; font-size: 13px;
+            pointer-events: auto;
+        }
+
+        .controls-panel {
+            background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(12px);
+            padding: 15px; border-radius: 18px;
+            border: 1px solid #ffffff; color: #333;
+            display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+            width: 300px; max-height: 80vh; overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.12);
+            margin-top: 10px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-origin: top right;
+        }
+
+        .controls-panel.hidden { transform: scale(0); opacity: 0; pointer-events: none; height: 0; margin: 0; padding: 0; }
+
+        .panel-label {
+            grid-column: span 2;
+            font-size: 10px; color: #0077ff; text-transform: uppercase;
+            font-weight: 800; letter-spacing: 1.2px; margin-bottom: 4px;
+            padding: 0 5px; opacity: 0.8; margin-top: 10px;
+        }
+
+        button.weapon-btn {
+            padding: 10px; font-size: 12px; cursor: pointer; 
+            background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; 
+            color: #444; font-weight: 600; text-align: center;
+            pointer-events: auto; transition: all 0.2s ease;
+            display: flex; flex-direction: column; align-items: center; gap: 4px;
+        }
+        button.weapon-btn.active { background: #0077ff; color: #fff; border-color: #0055cc; }
+        
+        button.reset { grid-column: span 2; background: #ff4757; color: white; border: none; padding: 12px; border-radius: 10px; font-weight: bold; margin-top: 10px; pointer-events: auto; }
+
+        #mobile-controls {
+            position: absolute; bottom: 20px; left: 0; right: 0;
+            display: flex; justify-content: space-between; align-items: flex-end;
+            padding: 0 20px; pointer-events: none; z-index: 250;
+        }
+
+        .joystick-container {
+            width: 120px; height: 120px; background: rgba(0,0,0,0.1);
+            border-radius: 50%; position: relative; pointer-events: auto;
+            border: 2px solid rgba(255,255,255,0.3);
+        }
+        #joystick-knob {
+            width: 50px; height: 50px; background: white; border-radius: 50%;
+            position: absolute; top: 35px; left: 35px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+
+        .action-buttons {
+            display: flex; flex-direction: column; gap: 15px; align-items: center;
+        }
+
+        #fire-btn {
+            width: 80px; height: 80px; background: #ff4757; color: white;
+            border-radius: 50%; border: 4px solid white; font-weight: bold;
+            font-size: 16px; pointer-events: auto; display: flex;
+            align-items: center; justify-content: center;
+            box-shadow: 0 4px 15px rgba(255, 71, 87, 0.4);
+            user-select: none;
+        }
+
+        #slo-mo-btn {
+            width: 60px; height: 60px; background: #6366f1; color: white;
+            border-radius: 50%; border: 3px solid white; font-weight: bold;
+            font-size: 12px; pointer-events: auto; display: flex;
+            align-items: center; justify-content: center;
+            box-shadow: 0 4px 10px rgba(99, 102, 241, 0.4);
+            user-select: none; transition: background 0.2s;
+        }
+        #slo-mo-btn.active { background: #fbbf24; color: #000; }
+
+        #weapon-status {
+            position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+            color: #0077ff; font-weight: bold; font-size: 12px;
+            background: rgba(255,255,255,0.9); padding: 5px 15px;
+            border-radius: 20px; border: 1px solid #0077ff; z-index: 200;
+        }
+
+        #crosshair {
+            position: absolute; top: 50%; left: 50%;
+            width: 20px; height: 20px; border: 2px solid rgba(0, 119, 255, 0.6);
+            border-radius: 50%; transform: translate(-50%, -50%);
+            pointer-events: none; z-index: 100;
+        }
+        
+        .shortcut-hint {
+            position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%);
+            font-size: 10px; opacity: 0.7; color: #1a3a5a; font-weight: 600;
+            background: rgba(255,255,255,0.5); padding: 2px 10px; border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="crosshair"></div>
+    <div id="ui">
+        <h1 style="color: #0077ff; margin:0; font-size: 18px;">DESTRUCTION LAB</h1>
+    </div>
+
+    <div id="weapon-status">Tool: Sphere</div>
+    <div class="shortcut-hint">F: Fire | T: Slo-Mo | R: Reset</div>
+
+    <div id="menu-container">
+        <button id="menu-toggle" onclick="toggleMenu()">
+            <span id="toggle-icon">🛠️</span>
+        </button>
+        
+        <div class="controls-panel hidden" id="gui">
+            <div class="panel-label">Classic</div>
+            <button class="weapon-btn active" onclick="setWeapon('ball', this)"><span>☄️</span>Sphere</button>
+            <button class="weapon-btn" onclick="setWeapon('timed_cracker', this)"><span>🧨</span>Timed Cracker</button>
+            <button class="weapon-btn" onclick="setWeapon('impact_bomb', this)"><span>💣</span>Impact Bomb</button>
+            <button class="weapon-btn" onclick="setWeapon('shrapnel', this)"><span>💥</span>Cluster</button>
+            
+            <div class="panel-label">Sci-Fi</div>
+            <button class="weapon-btn" onclick="setWeapon('blaster', this)"><span>🔦</span>Blaster</button>
+            <button class="weapon-btn" onclick="setWeapon('blackhole', this)"><span>🕳️</span>Singularity</button>
+            <button class="weapon-btn" onclick="setWeapon('well', this)"><span>🌌</span>Gravity Well</button>
+            <button class="weapon-btn" onclick="setWeapon('ice', this)"><span>❄️</span>Ice Beam</button>
+            
+            <div class="panel-label">Experimental</div>
+            <button class="weapon-btn" onclick="setWeapon('chicken', this)"><span>🐤</span>Chicken</button>
+            <button class="weapon-btn" onclick="setWeapon('grow', this)"><span>✨</span>Gigantify</button>
+            <button class="weapon-btn" onclick="setWeapon('magnet', this)"><span>🧲</span>Magnet</button>
+            <button class="weapon-btn" onclick="setWeapon('swords', this)"><span>⚔️</span>Sword</button>
+            
+            <div class="panel-label">Settings</div>
+            <div style="grid-column: span 2; display: flex; flex-direction: column; gap: 4px;">
+                <label style="font-size:11px">Tower Blocks: <b id="height-val">45</b></label>
+                <input type="range" id="tower-height" min="15" max="150" value="45" oninput="document.getElementById('height-val').innerText = this.value">
+            </div>
+            <button class="reset" onclick="resetTower()">RESET WORLD</button>
+        </div>
+    </div>
+
+    <div id="mobile-controls">
+        <div class="joystick-container" id="joystick">
+            <div id="joystick-knob"></div>
+        </div>
+        <div class="action-buttons">
+            <div id="slo-mo-btn" onclick="toggleSloMo()">SLO-MO</div>
+            <div id="fire-btn">FIRE</div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
+
+    <script>
+        let scene, camera, renderer, world, controls;
+        let blocks = [];
+        let projectiles = []; 
+        let currentWeapon = 'ball';
+        let isSloMo = false;
+        let shakeIntensity = 0;
+        let shakeOffset = new THREE.Vector3();
+        
+        const timeStep = 1/60;
+        
+        const BLOCK_W = 3, BLOCK_H = 1, BLOCK_D = 1;
+        const GAP = 0.05; 
+
+        const moveState = { forward: 0, right: 0 };
+        const keys = { w: false, a: false, s: false, d: false };
+
+        function toggleMenu() {
+            const panel = document.getElementById('gui');
+            const icon = document.getElementById('toggle-icon');
+            panel.classList.toggle('hidden');
+            icon.innerText = panel.classList.contains('hidden') ? '🛠️' : '✖️';
+        }
+
+        function toggleSloMo() {
+            isSloMo = !isSloMo;
+            const btn = document.getElementById('slo-mo-btn');
+            btn.classList.toggle('active');
+        }
+
+        function setWeapon(type, btn) {
+            currentWeapon = type;
+            document.querySelectorAll('.weapon-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const toolName = btn.innerText.replace(/[^\w\s]/gi, '').trim();
+            document.getElementById('weapon-status').innerText = `Tool: ${toolName}`;
+        }
+
+        function init() {
+            world = new CANNON.World();
+            world.gravity.set(0, -30, 0); 
+            world.solver.iterations = 25; 
+            
+            const blockMat = new CANNON.Material("blockMat");
+            const groundMat = new CANNON.Material("groundMat");
+            const contactMat = new CANNON.ContactMaterial(blockMat, groundMat, {
+                friction: 0.7,
+                restitution: 0.1
+            });
+            const blockBlockMat = new CANNON.ContactMaterial(blockMat, blockMat, {
+                friction: 0.6,
+                restitution: 0.1
+            });
+            world.addContactMaterial(contactMat);
+            world.addContactMaterial(blockBlockMat);
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xf0f4f8);
+            
+            camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 2000);
+            camera.position.set(40, 30, 40);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            document.body.appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.target.set(0, 10, 0);
+            
+            scene.add(new THREE.HemisphereLight(0xffffff, 0x88bbff, 1));
+            const sun = new THREE.DirectionalLight(0xffffff, 0.6);
+            sun.position.set(50, 100, 50);
+            sun.castShadow = true;
+            sun.shadow.camera.left = -50;
+            sun.shadow.camera.right = 50;
+            sun.shadow.camera.top = 100;
+            sun.shadow.camera.bottom = -50;
+            scene.add(sun);
+
+            const floor = new THREE.Mesh(new THREE.PlaneGeometry(1000, 1000), new THREE.MeshStandardMaterial({ color: 0xdae2e8 }));
+            floor.rotation.x = -Math.PI / 2;
+            floor.receiveShadow = true;
+            scene.add(floor);
+
+            const floorBody = new CANNON.Body({ mass: 0, material: groundMat });
+            floorBody.addShape(new CANNON.Plane());
+            floorBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
+            world.addBody(floorBody);
+
+            setupJoystick();
+            const fireBtn = document.getElementById('fire-btn');
+            fireBtn.addEventListener('touchstart', (e) => { e.preventDefault(); fireWeapon(); });
+            fireBtn.addEventListener('mousedown', (e) => { fireWeapon(); });
+
+            resetTower();
+
+            window.addEventListener('resize', onWindowResize);
+            
+            window.addEventListener('keydown', (e) => { 
+                const key = e.key.toLowerCase();
+                // Movement
+                if(key in keys) keys[key] = true;
+                
+                // Action Keys
+                if(key === 'f') fireWeapon();
+                if(key === 't') toggleSloMo();
+                if(key === 'r') resetTower();
+                
+                // Legacy support / Safety
+                if(key === 'backspace') resetTower();
+            });
+            
+            window.addEventListener('keyup', (e) => { 
+                const key = e.key.toLowerCase();
+                if(key in keys) keys[key] = false; 
+            });
+            
+            animate();
+        }
+
+        function setupJoystick() {
+            const joystick = document.getElementById('joystick');
+            const knob = document.getElementById('joystick-knob');
+            let active = false;
+
+            const handleMove = (e) => {
+                if (!active) return;
+                const touch = e.touches ? e.touches[0] : e;
+                const rect = joystick.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+                let dx = touch.clientX - centerX;
+                let dy = touch.clientY - centerY;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                const max = rect.width / 2 - 25;
+                if (dist > max) { dx *= max / dist; dy *= max / dist; }
+                knob.style.transform = `translate(${dx}px, ${dy}px)`;
+                moveState.right = dx / max;
+                moveState.forward = -dy / max;
+            };
+
+            const endMove = () => {
+                active = false;
+                knob.style.transform = `translate(0,0)`;
+                moveState.forward = 0; moveState.right = 0;
+            };
+
+            joystick.addEventListener('touchstart', (e) => { active = true; handleMove(e); }, {passive: false});
+            window.addEventListener('touchmove', handleMove, {passive: false});
+            window.addEventListener('touchend', endMove);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function resetTower() {
+            blocks.forEach(b => { scene.remove(b.mesh); world.remove(b.body); });
+            blocks = [];
+            const count = parseInt(document.getElementById('tower-height').value);
+            const layers = Math.floor(count / 3);
+            for (let i = 0; i < layers; i++) {
+                const isEven = i % 2 === 0;
+                for (let j = 0; j < 3; j++) {
+                    let x = 0; let z = 0;
+                    const y = (i * (BLOCK_H + GAP)) + (BLOCK_H / 2);
+                    if (isEven) { x = 0; z = (j - 1) * (BLOCK_D + GAP); } else { x = (j - 1) * (BLOCK_D + GAP); z = 0; }
+                    addBlock(x, y, z, isEven ? 0 : Math.PI / 2);
+                }
+            }
+        }
+
+        function addBlock(x, y, z, ry) {
+            const body = new CANNON.Body({ mass: 1.5 });
+            body.addShape(new CANNON.Box(new CANNON.Vec3(BLOCK_W/2, BLOCK_H/2, BLOCK_D/2)));
+            body.position.set(x, y, z);
+            body.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), ry);
+            body.allowSleep = true;
+            body.sleepSpeedLimit = 0.1;
+            body.sleepTimeLimit = 0.5;
+            world.addBody(body);
+            const mesh = new THREE.Mesh(new THREE.BoxGeometry(BLOCK_W, BLOCK_H, BLOCK_D), new THREE.MeshStandardMaterial({ color: 0xd4a373, roughness: 0.8 }));
+            mesh.castShadow = mesh.receiveShadow = true;
+            scene.add(mesh);
+            blocks.push({ body, mesh });
+        }
+
+        function fireWeapon() {
+            const dir = new THREE.Vector3();
+            camera.getWorldDirection(dir);
+            const ray = new THREE.Raycaster(camera.position, dir);
+            const hits = ray.intersectObjects(blocks.map(b => b.mesh));
+            const targetPos = hits.length > 0 ? hits[0].point : ray.ray.at(50);
+
+            switch(currentWeapon) {
+                case 'ball': spawnProj(50, 110, 1.2, 0x333333); break;
+                case 'timed_cracker': spawnTimedCracker(); break;
+                case 'impact_bomb': spawnImpactBomb(); break;
+                case 'shrapnel': for(let i=0; i<12; i++) spawnProj(8, 130, 0.4, 0xff5500, true); break;
+                case 'blaster': spawnBlasterBolt(); break;
+                case 'blackhole': triggerBlackHole(targetPos); break;
+                case 'well': triggerGravityWell(targetPos); break;
+                case 'swords': spawnSword(); break;
+                case 'ice': triggerIceBeam(hits[0]); break;
+                case 'chicken': spawnRubberChicken(); break;
+                case 'grow': triggerGrow(hits[0]); break;
+                case 'magnet': triggerMagnet(targetPos); break;
+            }
+        }
+
+        function spawnProj(mass, vel, size, color, spread = false, restitution = 0.1) {
+            const dir = new THREE.Vector3();
+            camera.getWorldDirection(dir);
+            if(spread) dir.add(new THREE.Vector3((Math.random()-0.5)*0.3, (Math.random()-0.5)*0.3, (Math.random()-0.5)*0.3)).normalize();
+            
+            const mat = new CANNON.Material();
+            const body = new CANNON.Body({ mass, material: mat });
+            body.addShape(new CANNON.Sphere(size));
+            body.position.set(camera.position.x + dir.x*4, camera.position.y + dir.y*4, camera.position.z + dir.z*4);
+            body.velocity.set(dir.x * vel, dir.y * vel, dir.z * vel);
+            
+            const cm = new CANNON.ContactMaterial(mat, world.defaultMaterial, { restitution: restitution });
+            world.addContactMaterial(cm);
+            
+            world.addBody(body);
+            const mesh = new THREE.Mesh(new THREE.SphereGeometry(size, 8, 8), new THREE.MeshStandardMaterial({ color }));
+            scene.add(mesh);
+            projectiles.push({ body, mesh, born: Date.now() });
+        }
+
+        function spawnRubberChicken() {
+            spawnProj(10, 80, 0.8, 0xffdd00, false, 0.9);
+        }
+
+        function triggerIceBeam(hit) {
+            if(!hit) return;
+            const block = blocks.find(b => b.mesh === hit.object);
+            if(block) {
+                block.mesh.material.color.set(0x00ffff);
+                block.mesh.material.emissive.set(0x004444);
+                block.body.mass = 0;
+                block.body.updateMassProperties();
+                block.body.velocity.set(0,0,0);
+                block.body.angularVelocity.set(0,0,0);
+            }
+        }
+
+        function triggerGrow(hit) {
+            if(!hit) return;
+            const block = blocks.find(b => b.mesh === hit.object);
+            if(block) {
+                block.mesh.scale.multiplyScalar(2.5);
+                block.body.shapes[0].halfExtents.scale(2.5, block.body.shapes[0].halfExtents);
+                block.body.updateBoundingRadius();
+                block.body.wakeUp();
+            }
+        }
+
+        function triggerMagnet(pos) {
+            const timer = setInterval(() => {
+                blocks.forEach(b => {
+                    const dv = new CANNON.Vec3(pos.x, pos.y, pos.z).vsub(b.body.position);
+                    if(dv.length() < 100) {
+                        b.body.wakeUp();
+                        b.body.applyForce(dv.unit().scale(1500), b.body.position);
+                    }
+                });
+            }, 30);
+            setTimeout(() => clearInterval(timer), 1000);
+        }
+
+        function spawnTimedCracker() {
+            const dir = new THREE.Vector3();
+            camera.getWorldDirection(dir);
+            const body = new CANNON.Body({ mass: 5 });
+            body.addShape(new CANNON.Sphere(0.6));
+            body.position.set(camera.position.x + dir.x * 4, camera.position.y + dir.y * 4, camera.position.z + dir.z * 4);
+            body.velocity.set(dir.x * 40, dir.y * 40, dir.z * 40);
+            body.angularVelocity.set(Math.random()*10, Math.random()*10, Math.random()*10);
+            world.addBody(body);
+            const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.6, 12, 12), new THREE.MeshStandardMaterial({ color: 0x00aa00, emissive: 0x002200 }));
+            scene.add(mesh);
+            projectiles.push({ body, mesh, born: Date.now(), isTimed: true, fuse: 3.0 });
+        }
+
+        function spawnImpactBomb() {
+            const dir = new THREE.Vector3();
+            camera.getWorldDirection(dir);
+            const body = new CANNON.Body({ mass: 10 });
+            body.addShape(new CANNON.Sphere(0.8));
+            body.position.set(camera.position.x + dir.x * 4, camera.position.y * 4, camera.position.z + dir.z * 4);
+            body.velocity.set(dir.x * 80, dir.y * 80, dir.z * 80);
+            let exploded = false;
+            body.addEventListener("collide", (e) => {
+                if (!exploded) {
+                    exploded = true;
+                    explode(body.position, 6000, 20, 0xffaa00);
+                    body.isDead = true; 
+                }
+            });
+            world.addBody(body);
+            const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.8, 12, 12), new THREE.MeshStandardMaterial({ color: 0x222222, emissive: 0x440000 }));
+            scene.add(mesh);
+            projectiles.push({ body, mesh, born: Date.now(), isImpact: true });
+        }
+
+        function spawnSword() {
+            const dir = new THREE.Vector3();
+            camera.getWorldDirection(dir);
+            const swordGroup = new THREE.Group();
+            const blade = new THREE.Mesh(new THREE.BoxGeometry(0.3, 3, 0.1), new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.8, roughness: 0.2 }));
+            blade.position.y = 1.5;
+            swordGroup.add(blade);
+            const guard = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.2, 0.3), new THREE.MeshStandardMaterial({ color: 0x8b4513 }));
+            swordGroup.add(guard);
+            const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.8), new THREE.MeshStandardMaterial({ color: 0x333333 }));
+            handle.position.y = -0.5;
+            swordGroup.add(handle);
+            scene.add(swordGroup);
+            const body = new CANNON.Body({ mass: 10 });
+            body.addShape(new CANNON.Box(new CANNON.Vec3(0.5, 1.5, 0.2)));
+            body.position.set(camera.position.x + dir.x * 4, camera.position.y + dir.y * 4, camera.position.z + dir.z * 4);
+            body.velocity.set(dir.x * 70, dir.y * 70, dir.z * 70);
+            body.angularVelocity.set(Math.random()*20, Math.random()*20, Math.random()*20);
+            world.addBody(body);
+            projectiles.push({ body, mesh: swordGroup, born: Date.now() });
+        }
+
+        function spawnBlasterBolt() {
+            const dir = new THREE.Vector3();
+            camera.getWorldDirection(dir);
+            const body = new CANNON.Body({ mass: 10 });
+            body.addShape(new CANNON.Sphere(0.2));
+            body.position.set(camera.position.x + dir.x * 4, camera.position.y + dir.y * 4, camera.position.z + dir.z * 4);
+            body.velocity.set(dir.x * 200, dir.y * 200, dir.z * 200);
+            world.addBody(body);
+            const geometry = new THREE.CylinderGeometry(0.1, 0.1, 3, 8);
+            geometry.rotateX(Math.PI / 2);
+            const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ color: 0xff0000 }));
+            mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir);
+            scene.add(mesh);
+            projectiles.push({ body, mesh, born: Date.now(), isBlaster: true });
+        }
+
+        function explode(pos, strength, radius, color, shakeMult = 1.0) {
+            const dist = camera.position.distanceTo(pos);
+            const intensity = Math.max(0, 6.0 * (1 - dist / 150)) * shakeMult; 
+            shakeIntensity = Math.min(shakeIntensity + intensity, 12.0);
+            const mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 16), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.7 }));
+            mesh.position.copy(pos); scene.add(mesh);
+            let s = 1;
+            const ani = setInterval(() => {
+                s += isSloMo ? 2 : 6; mesh.scale.setScalar(s); mesh.material.opacity -= 0.1;
+                if(mesh.material.opacity <= 0) { scene.remove(mesh); clearInterval(ani); }
+            }, 30);
+            blocks.forEach(b => {
+                const dv = b.body.position.vsub(new CANNON.Vec3(pos.x, pos.y, pos.z));
+                const d = dv.length();
+                if(d < radius) {
+                    b.body.wakeUp();
+                    const force = strength * (1 - d/radius);
+                    b.body.applyImpulse(dv.unit().scale(force), b.body.position);
+                }
+            });
+        }
+
+        function triggerBlackHole(pos) {
+            const mesh = new THREE.Mesh(new THREE.SphereGeometry(1.5, 32, 32), new THREE.MeshBasicMaterial({ color: 0x000000 }));
+            mesh.position.copy(pos); scene.add(mesh);
+            let count = 0;
+            const timer = setInterval(() => {
+                blocks.forEach(b => {
+                    const dv = new CANNON.Vec3(pos.x, pos.y, pos.z).vsub(b.body.position);
+                    const d = dv.length();
+                    if(d < 60) {
+                        b.body.wakeUp();
+                        const force = dv.unit().scale(2500 / (d + 2));
+                        b.body.applyForce(force, b.body.position);
+                        if(d < 1.5) { b.body.position.set(0, -500, 0); }
+                    }
+                });
+                mesh.scale.setScalar(1 + Math.sin(count * 0.2) * 0.3);
+                if(++count > 250) { scene.remove(mesh); clearInterval(timer); }
+            }, 20);
+        }
+
+        function triggerGravityWell(pos) {
+            let count = 0;
+            const timer = setInterval(() => {
+                blocks.forEach(b => {
+                    const dv = new CANNON.Vec3(pos.x, pos.y, pos.z).vsub(b.body.position);
+                    if(dv.length() < 40) { b.body.wakeUp(); b.body.applyForce(dv.unit().scale(600), b.body.position); }
+                });
+                if(++count > 80) clearInterval(timer);
+            }, 30);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const dt = isSloMo ? timeStep * 0.15 : timeStep;
+            world.step(dt);
+            const moveSpeed = 0.5;
+            const dir = new THREE.Vector3();
+            camera.getWorldDirection(dir);
+            const side = new THREE.Vector3().crossVectors(new THREE.Vector3(0,1,0), dir).normalize();
+            let f = moveState.forward;
+            if (keys.w) f = 1; if (keys.s) f = -1;
+            let r = moveState.right;
+            if (keys.d) r = 1; if (keys.a) r = -1;
+            if (f !== 0 || r !== 0) {
+                camera.position.addScaledVector(dir, f * moveSpeed);
+                camera.position.addScaledVector(side, -r * moveSpeed);
+                controls.target.addScaledVector(dir, f * moveSpeed);
+                controls.target.addScaledVector(side, -r * moveSpeed);
+            }
+            blocks.forEach(b => { b.mesh.position.copy(b.body.position); b.mesh.quaternion.copy(b.body.quaternion); });
+            for(let i=projectiles.length-1; i>=0; i--) {
+                const p = projectiles[i];
+                p.mesh.position.copy(p.body.position);
+                p.mesh.quaternion.copy(p.body.quaternion);
+                if (p.body.isDead) { scene.remove(p.mesh); world.remove(p.body); projectiles.splice(i,1); continue; }
+                if (p.isTimed) {
+                    p.fuse -= dt;
+                    const pulse = Math.abs(Math.sin(Date.now() * 0.01));
+                    p.mesh.material.emissive.setRGB(pulse, 0, 0);
+                    if (p.fuse <= 0) {
+                        explode(p.body.position, 4000, 15, 0x00ff00);
+                        scene.remove(p.mesh); world.remove(p.body); projectiles.splice(i,1);
+                        continue;
+                    }
+                }
+                if(p.isBlaster) {
+                    const ray = new THREE.Raycaster(p.mesh.position, p.body.velocity.clone().unit());
+                    const hits = ray.intersectObjects(blocks.map(b => b.mesh));
+                    if(hits.length > 0 && hits[0].distance < 1.5) {
+                        explode(hits[0].point, 1000, 5, 0xff0000, 0.1);
+                        scene.remove(p.mesh); world.remove(p.body); projectiles.splice(i,1);
+                        continue;
+                    }
+                }
+                if(Date.now() - p.born > 10000) { scene.remove(p.mesh); world.remove(p.body); projectiles.splice(i,1); }
+            }
+            controls.update();
+            if (shakeIntensity > 0) {
+                shakeOffset.set((Math.random()-0.5)*shakeIntensity, (Math.random()-0.5)*shakeIntensity, (Math.random()-0.5)*shakeIntensity);
+                camera.position.add(shakeOffset);
+                shakeIntensity *= 0.93; 
+                if (shakeIntensity < 0.05) shakeIntensity = 0;
+            }
+            renderer.render(scene, camera);
+            if (shakeIntensity > 0) { camera.position.sub(shakeOffset); }
+        }
+
+        init();
+    </script>
+</body>
+</html>
